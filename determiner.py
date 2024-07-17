@@ -2,7 +2,6 @@ import os
 import subprocess
 import re
 
-
 def is_python_exe(file_path):
     try:
         # Run the strings command on the file
@@ -12,7 +11,6 @@ def is_python_exe(file_path):
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
     return False
-
 
 def get_python_version(file_path):
     try:
@@ -36,6 +34,17 @@ def get_python_version(file_path):
         print(f"Error getting version for {file_path}: {e}")
     return "Version unidentified"
 
+def extract_with_pyinstxtractor(python_version, file_path):
+    try:
+        # Command to run pyinstxtractor
+        command = f"python{python_version} pyinstxtractor/pyinstxtractor.py {file_path}"
+        result = subprocess.run(command, shell=True)
+        if result.returncode == 0:
+            print(f"Successfully extracted {file_path} using pyinstxtractor.")
+        else:
+            print(f"Failed to extract {file_path} using pyinstxtractor.")
+    except Exception as e:
+        print(f"Error running pyinstxtractor for {file_path}: {e}")
 
 def scan_for_python_exes(directory):
     # List all files in the given directory
@@ -48,8 +57,9 @@ def scan_for_python_exes(directory):
             # Check if the .exe file is a Python executable
             if is_python_exe(file_path):
                 version = get_python_version(file_path)
-                print(f"Python EXE found: {file}, Version: {version}")
-
+                if version != "Version unidentified":
+                    print(f"Python EXE found: {file}, Version: {version}")
+                    extract_with_pyinstxtractor(version, file_path)
 
 if __name__ == "__main__":
     scan_for_python_exes(os.getcwd())
