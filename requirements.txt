@@ -1,0 +1,11 @@
+Requirements for extraction of Python EXE files:
+
+Preferably for multiple EXE files that may have used different Python versions, install Python versions 2.3 +
+
+pyinstxtractor
+pyinstxtractor installation:
+
+cd PEDS/
+git clone https://github.com/extremecoders-re/pyinstxtractor
+
+pyinstxtractor must reside in DIR PEDS/pyinstxtractor/
