@@ -9,3 +9,12 @@ cd PEDS/
 git clone https://github.com/extremecoders-re/pyinstxtractor
 
 pyinstxtractor must reside in DIR PEDS/pyinstxtractor/
+
+
+pycdc
+pycdc installation:
+
+cd PEDS/
+git clone https://github.com/zrax/pycdc
+cmake ./pycdc
+make
