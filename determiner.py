@@ -18,11 +18,18 @@ def get_python_version(file_path):
     try:
         # Run the strings command on the file
         result = subprocess.run(['strings', file_path], capture_output=True, text=True)
-        # Regular expression to match Python versions
-        version_pattern = re.compile(r'python(\d+\.\d+)')
+        # Regular expression to match Python versions (with and without decimal points)
+        version_pattern = re.compile(r'python(\d+\.\d+|\d{2,})')
         versions = version_pattern.findall(result.stdout)
+        # Normalize versions to include a decimal point if missing
+        normalized_versions = []
+        for v in versions:
+            if '.' not in v and len(v) >= 2:
+                normalized_versions.append(f"{v[0]}.{v[1:]}")
+            else:
+                normalized_versions.append(v)
         # Filter for versions above 2.3
-        valid_versions = [v for v in versions if float(v) > 2.3]
+        valid_versions = [v for v in normalized_versions if float(v) > 2.3]
         if valid_versions:
             return sorted(valid_versions, reverse=True)[0]  # Return the highest version found
     except Exception as e:
