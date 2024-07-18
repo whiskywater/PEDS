@@ -1,56 +1,55 @@
-import os
-import subprocess
-import re
+import os, subprocess, re, sys
+
+PYINSTXTRACTOR_PATH = '../pyinstxtractor/pyinstxtractor.py'
+PYCDC_PATH = '../../../apps/pycdc/pycdc'
+PYCDAS_PATH = '../../../apps/pycdc/pycdas'
+PADDING = '-'*10
+
 
 def is_python_exe(file_path):
     try:
         # Run the strings command on the file
-        result = subprocess.run(['strings', file_path], capture_output=True, text=True)
-        if "PYZ-00.pyz" in result.stdout:
-            return True
-    except Exception as e:
-        print(f"Error processing {file_path}: {e}")
+        result = run_command('strings', file_path)
+        if "PYZ-00.pyz" in result: return True
+    except Exception as e: print(f"Error processing {file_path}: {e}")
     return False
+
 
 def get_python_version(file_path):
     try:
         # Run the strings command on the file
-        result = subprocess.run(['strings', file_path], capture_output=True, text=True)
+        result = run_command('strings',file_path)
         # Regular expression to match Python versions (with and without decimal points)
         version_pattern = re.compile(r'python(\d+\.\d+|\d{2,})')
-        versions = version_pattern.findall(result.stdout)
+        versions = version_pattern.findall(result)
         # Normalize versions to include a decimal point if missing
         normalized_versions = []
         for v in versions:
-            if '.' not in v and len(v) >= 2:
-                normalized_versions.append(f"{v[0]}.{v[1:]}")
-            else:
-                normalized_versions.append(v)
+            if '.' not in v and len(v) >= 2: normalized_versions.append(f"{v[0]}.{v[1:]}")
+            else: normalized_versions.append(v)
         # Filter for versions above 2.3
         valid_versions = [v for v in normalized_versions if float(v) > 2.3]
-        if valid_versions:
-            return sorted(valid_versions, reverse=True)[0]  # Return the highest version found
-    except Exception as e:
-        print(f"Error getting version for {file_path}: {e}")
+        if valid_versions: return sorted(valid_versions, reverse=True)[0]  # Return the highest version found
+    except Exception as e: print(f"Error getting version for {file_path}: {e}")
     return "Version unidentified"
+
 
 def extract_with_pyinstxtractor(python_version, file_path):
     try:
         # Command to run pyinstxtractor
-        command = f"python{python_version} pyinstxtractor/pyinstxtractor.py {file_path}"
+        command = f"python{python_version} {PYINSTXTRACTOR_PATH} {file_path}"
         result = subprocess.run(command, shell=True)
-        if result.returncode == 0:
-            print(f"Successfully extracted {file_path} using pyinstxtractor.")
-        else:
-            print(f"Failed to extract {file_path} using pyinstxtractor.")
+        if result.returncode == 0: print(f"Successfully extracted {file_path} using pyinstxtractor.")
+        else: print(f"Failed to extract {file_path} using pyinstxtractor.")
     except Exception as e:
         print(f"Error running pyinstxtractor for {file_path}: {e}")
+
 
 def scan_for_python_exes(directory):
     # List all files in the given directory
     files = os.listdir(directory)
 
-    for file in files:
+    for file in files.copy():
         # Check if the file has a .exe extension
         if file.endswith('.exe'):
             file_path = os.path.join(directory, file)
@@ -60,6 +59,58 @@ def scan_for_python_exes(directory):
                 if version != "Version unidentified":
                     print(f"Python EXE found: {file}, Version: {version}")
                     extract_with_pyinstxtractor(version, file_path)
+                    continue
+        # Remove the file if it wasn't successfully extracted
+        files.remove(file)
+    return [f"{file}_extracted" for file in files]
 
-if __name__ == "__main__":
-    scan_for_python_exes(os.getcwd())
+
+def blacklisted(s): return any(s.startswith(x) for x in ('pyimod', 'pyi_rth', 'pyiboot')) or s in ('struct.pyc',)
+
+def find_pyc_files(directory): return [f'{directory}/{x}' for x in os.listdir(directory) if x.endswith('pyc') and not blacklisted(x)]
+
+def run_command(command, file): return subprocess.run([command, file], capture_output=True, text=True).stdout
+
+
+def find_secrets(texts):
+    hotwords = ['key','secret','encoded', 'encrypt', 'http', 'https', 'token', '://']
+    #create a dict of filename : {(line#, line)} pairs
+    return {filetype : {(i, line.strip()) 
+                    for i, line in enumerate(text.splitlines()) 
+                    for token in hotwords 
+                    if token in line} \
+        for filetype, text in texts if text}
+
+
+def pretty_print(file, scanned): 
+    for filetype, lst in scanned.items():
+        if lst: print(f"\n{PADDING}items found in {'.'.join(file.split('.')[:-1])}.{filetype}{PADDING}\n")
+        for num, line in lst: print(f"{num}#: {line}")
+
+
+
+def scan_files(files, aggressive_mode=False):
+    found = []
+    for file in files:
+        curr = []
+        print(f'scanning {file}...')
+        text1 = 'pyc', run_command('strings',file)
+        text2 = 'py', run_command(PYCDC_PATH, file)
+        curr = [text1, text2]
+        if aggressive_mode: 
+            text3 = 'disassembly', run_command(PYCDAS_PATH, file)
+            curr.append(text3)
+        new_found = find_secrets(curr)
+        found.append(new_found)
+        if new_found: pretty_print(file, new_found)
+
+
+def main():
+    dirs = scan_for_python_exes(sys.argv[1])
+    files_to_check = [find_pyc_files(dr) for dr in dirs] #collecting pyc files to scan and filtering blacklisted items
+    print(f"scanning following files: ", *files_to_check)
+    for files in files_to_check: scan_files(files) # scanning files for secrets
+
+
+
+if __name__ == "__main__": main()
