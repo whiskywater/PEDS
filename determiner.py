@@ -3,6 +3,7 @@ import os, subprocess, re, sys
 PYINSTXTRACTOR_PATH = '../pyinstxtractor/pyinstxtractor.py'
 PYCDC_PATH = '../../../apps/pycdc/pycdc'
 PYCDAS_PATH = '../../../apps/pycdc/pycdas'
+OUTPUT_PATH = './'
 PADDING = '-'*10
 
 
@@ -78,28 +79,34 @@ def find_secrets(texts):
     return {filetype : {(i, line.strip()) 
                     for i, line in enumerate(text.splitlines()) 
                     for token in hotwords 
-                    if token in line} \
-        for filetype, text in texts if text}
+                    if token in line}
+            for filetype, text in texts if text}
 
 
 def pretty_print(file, scanned): 
     for filetype, lst in scanned.items():
         if lst: print(f"\n{PADDING}items found in {'.'.join(file.split('.')[:-1])}.{filetype}{PADDING}\n")
-        for num, line in lst: print(f"{num}#: {line}")
+        for num, line in sorted(lst): print(f"{num}#: {line}")
 
 
 
-def scan_files(files, aggressive_mode=False):
+def scan_files(files, aggressive_mode=False, save_files=False):
     found = []
     for file in files:
         curr = []
         print(f'scanning {file}...')
-        text1 = 'pyc', run_command('strings',file)
-        text2 = 'py', run_command(PYCDC_PATH, file)
+        text1 = 'pyc', run_command('strings',file).lower()
+        py_file = run_command(PYCDC_PATH, file)
+        text2 = 'py', py_file.lower()
         curr = [text1, text2]
+        if save_files and py_file:
+            with open('{file}.py.txt', 'w') as f: f.write(py_file)
         if aggressive_mode: 
-            text3 = 'disassembly', run_command(PYCDAS_PATH, file)
+            disas_file = run_command(PYCDAS_PATH, file)
+            text3 = 'disassembly', disas_file.lower()
             curr.append(text3)
+            if save_files and disas_file:
+                with open('{file}.disassembly', 'w') as f: f.write(disas_file)
         new_found = find_secrets(curr)
         found.append(new_found)
         if new_found: pretty_print(file, new_found)
@@ -110,7 +117,6 @@ def main():
     files_to_check = [find_pyc_files(dr) for dr in dirs] #collecting pyc files to scan and filtering blacklisted items
     print(f"scanning following files: ", *files_to_check)
     for files in files_to_check: scan_files(files) # scanning files for secrets
-
 
 
 if __name__ == "__main__": main()
