@@ -76,17 +76,21 @@ def run_command(command, file): return subprocess.run([command, file], capture_o
 def find_secrets(texts):
     hotwords = ['key','secret','encoded', 'encrypt', 'http', 'https', 'token', '://']
     #create a dict of filename : {(line#, line)} pairs
-    return {filetype : {(i, line.strip()) 
-                    for i, line in enumerate(text.splitlines()) 
-                    for token in hotwords 
-                    if token in line}
-            for filetype, text in texts if text}
+    output = {}
+    for filetype, text in texts:
+        output[filetype] = {}
+        if text:
+            for i, line in enumerate(text.splitlines(),start=1):
+                line=line.strip().lower()
+                for token in hotwords:
+                    if token in line and str(i) not in output[filetype].get(line,[]): output[filetype][line] = output[filetype].get(line, []) + [str(i)] #inefficient to create a new list each time but this program is fast enough
+    return output
 
 
 def pretty_print(file, scanned): 
-    for filetype, lst in scanned.items():
-        if lst: print(f"\n{PADDING}items found in {'.'.join(file.split('.')[:-1])}.{filetype}{PADDING}\n")
-        for num, line in sorted(lst): print(f"{num}#: {line}")
+    for filetype, dct in scanned.items():
+        if dct: print(f"\n{PADDING}items found in {'.'.join(file.split('.')[:-1])}.{filetype}{PADDING}\n")
+        for line, nums in dct.items(): print(f"#{',#'.join(nums)}: {line}")
 
 
 
