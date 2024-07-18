@@ -99,14 +99,15 @@ def scan_files(files, aggressive_mode=False, save_files=False):
         py_file = run_command(PYCDC_PATH, file)
         text2 = 'py', py_file.lower()
         curr = [text1, text2]
+        file_stub = '.'.join(py_file.split('.')[:-1])
         if save_files and py_file:
-            with open('{file}.py.txt', 'w') as f: f.write(py_file)
+            with open(f"{file_stub}.py", 'w') as f: f.write(py_file)
         if aggressive_mode: 
             disas_file = run_command(PYCDAS_PATH, file)
             text3 = 'disassembly', disas_file.lower()
             curr.append(text3)
             if save_files and disas_file:
-                with open('{file}.disassembly', 'w') as f: f.write(disas_file)
+                with open(f"{file_stub}.disassembly", 'w') as f: f.write(disas_file)
         new_found = find_secrets(curr)
         found.append(new_found)
         if new_found: pretty_print(file, new_found)
