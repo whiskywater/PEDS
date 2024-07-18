@@ -5,6 +5,10 @@ PYCDC_PATH = '../../../apps/pycdc/pycdc'
 PYCDAS_PATH = '../../../apps/pycdc/pycdas'
 OUTPUT_PATH = './'
 PADDING = '-'*10
+HOTWORDS = ['key','secret','encoded', 'encrypt', 'decrypt', 'http', 'https', 'token', 
+            '://', 'hidden', 'password', 'credential', 'bank', 'discord', 'video',
+            'screenshot', 'record', 'exfiltrate', 'exploit', 'takeover', 'rat', 'hack',
+            'database', 'store', 'pay', 'ransom', 'mp4', 'mp3', 'log']
 
 
 def is_python_exe(file_path):
@@ -74,7 +78,6 @@ def run_command(command, file): return subprocess.run([command, file], capture_o
 
 
 def find_secrets(texts):
-    hotwords = ['key','secret','encoded', 'encrypt', 'http', 'https', 'token', '://']
     #create a dict of filename : {(line#, line)} pairs
     output = {}
     for filetype, text in texts:
@@ -82,7 +85,7 @@ def find_secrets(texts):
         if text:
             for i, line in enumerate(text.splitlines(),start=1):
                 line=line.strip().lower()
-                for token in hotwords:
+                for token in HOTWORDS:
                     if token in line and str(i) not in output[filetype].get(line,[]): output[filetype][line] = output[filetype].get(line, []) + [str(i)] #inefficient to create a new list each time but this program is fast enough
     return output
 
